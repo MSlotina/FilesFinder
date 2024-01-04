@@ -6,6 +6,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -57,7 +58,8 @@ namespace FilesFinder
 
         private void btnSearch_Click(object sender, EventArgs e)
         {
-
+            //Regex reg = new Regex(@"^FA[0-9]{4}\.xml$");
+            //var files = Directory.GetFiles(yourPath, "*.xml").Where(path => reg.IsMatch(path));
         }
     }
 }
