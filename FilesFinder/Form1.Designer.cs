@@ -28,8 +28,10 @@
         /// </summary>
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FrmFilesFinder));
             this.btnOpenFileBrowser = new System.Windows.Forms.Button();
-            this.textBox1 = new System.Windows.Forms.TextBox();
+            this.tbLog = new System.Windows.Forms.TextBox();
             this.btnSearch = new System.Windows.Forms.Button();
             this.lbRegEx = new System.Windows.Forms.Label();
             this.lbStartDir = new System.Windows.Forms.Label();
@@ -37,6 +39,7 @@
             this.tbRegEx = new System.Windows.Forms.TextBox();
             this.tbStartDir = new System.Windows.Forms.TextBox();
             this.dlgBrowseStartDir = new System.Windows.Forms.FolderBrowserDialog();
+            this.imgListFiles = new System.Windows.Forms.ImageList(this.components);
             this.SuspendLayout();
             // 
             // btnOpenFileBrowser
@@ -49,15 +52,15 @@
             this.btnOpenFileBrowser.UseVisualStyleBackColor = true;
             this.btnOpenFileBrowser.Click += new System.EventHandler(this.btnOpenFileBrowser_Click);
             // 
-            // textBox1
+            // tbLog
             // 
-            this.textBox1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            this.tbLog.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left)));
-            this.textBox1.Location = new System.Drawing.Point(14, 124);
-            this.textBox1.Multiline = true;
-            this.textBox1.Name = "textBox1";
-            this.textBox1.Size = new System.Drawing.Size(320, 238);
-            this.textBox1.TabIndex = 14;
+            this.tbLog.Location = new System.Drawing.Point(14, 124);
+            this.tbLog.Multiline = true;
+            this.tbLog.Name = "tbLog";
+            this.tbLog.Size = new System.Drawing.Size(320, 238);
+            this.tbLog.TabIndex = 14;
             // 
             // btnSearch
             // 
@@ -92,10 +95,15 @@
             this.tvFiles.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+            this.tvFiles.ImageIndex = 0;
+            this.tvFiles.ImageList = this.imgListFiles;
             this.tvFiles.Location = new System.Drawing.Point(350, 17);
             this.tvFiles.Name = "tvFiles";
+            this.tvFiles.SelectedImageIndex = 0;
             this.tvFiles.Size = new System.Drawing.Size(381, 345);
             this.tvFiles.TabIndex = 10;
+            this.tvFiles.BeforeExpand += new System.Windows.Forms.TreeViewCancelEventHandler(this.tvFiles_BeforeExpand);
+            this.tvFiles.AfterExpand += new System.Windows.Forms.TreeViewEventHandler(this.tvFiles_AfterExpand);
             // 
             // tbRegEx
             // 
@@ -112,13 +120,20 @@
             this.tbStartDir.Size = new System.Drawing.Size(163, 20);
             this.tbStartDir.TabIndex = 8;
             // 
+            // imgListFiles
+            // 
+            this.imgListFiles.ImageStream = ((System.Windows.Forms.ImageListStreamer)(resources.GetObject("imgListFiles.ImageStream")));
+            this.imgListFiles.TransparentColor = System.Drawing.Color.Transparent;
+            this.imgListFiles.Images.SetKeyName(0, "imgFolder.png");
+            this.imgListFiles.Images.SetKeyName(1, "imgFile.png");
+            // 
             // FrmFilesFinder
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(743, 374);
             this.Controls.Add(this.btnOpenFileBrowser);
-            this.Controls.Add(this.textBox1);
+            this.Controls.Add(this.tbLog);
             this.Controls.Add(this.btnSearch);
             this.Controls.Add(this.lbRegEx);
             this.Controls.Add(this.lbStartDir);
@@ -137,7 +152,7 @@
         #endregion
 
         private System.Windows.Forms.Button btnOpenFileBrowser;
-        private System.Windows.Forms.TextBox textBox1;
+        private System.Windows.Forms.TextBox tbLog;
         private System.Windows.Forms.Button btnSearch;
         private System.Windows.Forms.Label lbRegEx;
         private System.Windows.Forms.Label lbStartDir;
@@ -145,6 +160,7 @@
         private System.Windows.Forms.TextBox tbRegEx;
         private System.Windows.Forms.TextBox tbStartDir;
         private System.Windows.Forms.FolderBrowserDialog dlgBrowseStartDir;
+        private System.Windows.Forms.ImageList imgListFiles;
     }
 }
 
