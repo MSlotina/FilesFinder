@@ -103,7 +103,6 @@
             this.tvFiles.Size = new System.Drawing.Size(381, 345);
             this.tvFiles.TabIndex = 10;
             this.tvFiles.BeforeExpand += new System.Windows.Forms.TreeViewCancelEventHandler(this.tvFiles_BeforeExpand);
-            this.tvFiles.AfterExpand += new System.Windows.Forms.TreeViewEventHandler(this.tvFiles_AfterExpand);
             // 
             // tbRegEx
             // 

@@ -1,28 +1,31 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
 using System.Diagnostics;
-using System.Diagnostics.Eventing.Reader;
-using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Reflection.Emit;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Xml.Linq;
-using FastTreeNS;
-using static System.Windows.Forms.LinkLabel;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace FilesFinder
 {
     public partial class FrmFilesFinder : Form
     {
         string c_InitFilePath = @".\init.txt";
+
+        Node v_Root = null;
+        bool v_Started = false;
+        Thread v_TSearchFiles, v_TShowResult;
+        String c_StartText = "Начать поиск";
+        String c_StopText = "Остановить поиск";
+        Stopwatch v_SW = new Stopwatch();
+        Regex v_RegEx;
+
+        private int v_Found;
+        private int v_Count;
+        private string v_CurrentDirName;
 
         public FrmFilesFinder()
         {
@@ -61,20 +64,8 @@ namespace FilesFinder
                     tbRegEx.Text = v_Lines[1];
                 }
             }
-
         }
-
-        Node v_Root = null;
-        bool v_Started = false;
-        Thread thread, thread2, thread3;
-        String c_StartText = "Начать поиск";
-        String c_StopText = "Остановить поиск";
-        Stopwatch v_SW;
-
-        private int v_Found;
-        private int v_Count;
-        private string v_CurrentDirName;
-
+        
         private void SetStarted(bool p_Started) 
         {
             v_Started = p_Started;
@@ -87,135 +78,79 @@ namespace FilesFinder
             {
                 btnSearch.Text = p_Started ? c_StopText : c_StartText;
             }
+            if (p_Started) v_SW.Start(); 
+            else v_SW.Reset();            
         }
 
         private void btnSearch_Click(object sender, EventArgs e)
         {
             if (!v_Started) {
                 SetStarted(true);
-            //Regex reg = new Regex(@"^FA[0-9]{4}\.xml$");
-            //var files = Directory.GetFiles(yourPath, "*.xml").Where(path => reg.IsMatch(path));
+                
+                var v_Dir = tbStartDir.Text.Trim();// @"с:";
+                var v_RegExStr = tbRegEx.Text.Trim();// "*.*";
 
-            //InitializeComponent();
+                v_RegEx = new Regex(v_RegExStr);
 
-            var dir = tbStartDir.Text.Trim();// @"с:";
-            var fileMask = tbRegEx.Text.Trim();// "*.*";
-
-            tvFiles.Nodes.Clear();
-                //корневая директория
-                v_Root = new Node { FullPath = dir };
-                v_SW = new Stopwatch();
-
-                //поток
-                thread = new Thread(() => BuildTree(v_Root, fileMask)) { IsBackground = true };
-                thread.Start();
-                v_SW.Start();
-
-                //thread2 = new Thread(() => ShowTree(v_Root)) { IsBackground = true };
-                //thread2.Start();
-
-                thread3 = new Thread(() => ShowResults(v_Root)) { IsBackground = true };
-                thread3.Start();
-                //дерево
-                //var ft = new FastTree() { 
-                //    Parent = this, Dock = DockStyle.Fill, ShowIcons = true, ShowRootNode = true };
-                //ft.NodeIconNeeded += ft_NodeIconNeeded;
-
-            //    //обновляем дерево, пока работает поток
-            //    Application.Idle += delegate
-            //{
-            //    if (thread.IsAlive)
-            //    {
-            //        //ft.Build(root);
-            //        Thread.Sleep(300);
-            //        tv_BuildTree(v_Root);
-            //        //Text = "Found files: " + found;
-            //        //.ElapsedMilliseconds;
-
-            //        tbLog.Text = "Текущая директория: " + Environment.NewLine + v_CurrentDirName +Environment.NewLine
-            //        + "Просмотрено файлов:  " + v_Count + Environment.NewLine
-            //        + "Найдено файлов:   " + v_Found + Environment.NewLine
-            //        + "Затраченное время:   " + v_SW.Elapsed.TotalSeconds.ToString() + " секунд";
-
-            //    } else
-            //    {
-            //        SetStarted(false);
-            //        v_SW.Reset();
-            //    }
-            //};
-        } else {
+                v_Root = new Node { FullPath = v_Dir };
+                
+                v_TSearchFiles = new Thread(() => BuildTree(v_Root)) { IsBackground = true };
+                v_TSearchFiles.Start();
+                
+                v_TShowResult = new Thread(() => ShowResult(v_Root)) { IsBackground = true };
+                v_TShowResult.Start();                                
+            }
+            else {
                 SetStarted(false);
-                v_SW.Reset();
-                thread.Abort();
-               // thread2.Abort();
-                thread3.Abort();
+                v_TSearchFiles.Abort();
+                v_TShowResult.Abort();
             }
         }
 
-        void ShowTree(Node v_Root)
-        {
-            while (thread.IsAlive)
+        void ShowResult(Node v_Root) {
+            tvFiles.Invoke(new Action(() => { tvFiles.Nodes.Clear(); }));            
+            int i = 0;
+            while (v_TSearchFiles.IsAlive)
             {
-                //ft.Build(root);
-                Thread.Sleep(1000);
-                tvFiles.Invoke(new Action(() => { tv_BuildTree(v_Root); }));
-
-                //tv_BuildTree(v_Root);
-                //Text = "Found files: " + found;
-                //.ElapsedMilliseconds;
-                //tbLog.Invoke(new Action(() => {
-                //    tbLog.Text = "Текущая директория: " + Environment.NewLine + v_CurrentDirName + Environment.NewLine
-                //+ "Просмотрено файлов:  " + v_Count + Environment.NewLine
-                //+ "Найдено файлов:   " + v_Found + Environment.NewLine
-                //+ "Затраченное время:   " + v_SW.Elapsed.TotalSeconds.ToString() + " секунд";
-                //}));
-            }
-
-            //SetStarted(false);
-           // v_SW.Reset();
-
-        }
-        void ShowResults(Node v_Root) {
-            tvFiles.Invoke(new Action(() => { tv_BuildTree(v_Root); }));
-
-            while (thread.IsAlive)
-            {
-                //ft.Build(root);
-                Thread.Sleep(1000);
-                //tvFiles.Invoke(new Action(() => { tv_BuildTree(v_Root); }));
-
-                //tv_BuildTree(v_Root);
-                //Text = "Found files: " + found;
-                //.ElapsedMilliseconds;
+                if (v_SW.ElapsedMilliseconds > i * 3000)
+                {
+                    tvFiles.Invoke(new Action(() => { tvFiles_BuildTree(v_Root); }));
+                    i++;
+                }
                 tbLog.Invoke(new Action(() => {
                     tbLog.Text = "Текущая директория: " + Environment.NewLine + v_CurrentDirName + Environment.NewLine
                 + "Просмотрено файлов:  " + v_Count + Environment.NewLine
                 + "Найдено файлов:   " + v_Found + Environment.NewLine
-                + "Затраченное время:   " + v_SW.Elapsed.TotalSeconds.ToString() + " секунд";
+                + "Затраченное время:   " + v_SW.Elapsed.TotalSeconds.ToString("0.##") + " секунд";
                 }));
+
+                Thread.Sleep(100);                
             }
-            
-                SetStarted(false);
-                v_SW.Reset();
-            
+            tvFiles.Invoke(new Action(() => { tvFiles_BuildTree(v_Root); }));
+
+            SetStarted(false);
+                        
         }
 
-        void tv_BuildTree(Node p_Node) {
-            TreeNode v_tvNewNode = tvFiles.Nodes[p_Node.Id.ToString()] ??
-                tvFiles.Nodes.Add(p_Node.Id.ToString(), p_Node.ToString());
-           // TreeNode v_tvNewNode = tvFiles.TopNode ??
-             //   tvFiles.Nodes.Add(p_Node.Id.ToString(), p_Node.ToString());
-            v_tvNewNode.Tag = p_Node;
-            v_tvNewNode.Expand();
-            tv_BuildNode(v_tvNewNode, p_Node, true);
+        async void tvFiles_BuildTree(Node p_Node) {
+            TreeNode v_tvNewNode = tvFiles.Nodes[p_Node.Id.ToString()];
+            if (v_tvNewNode == null)
+            {
+                v_tvNewNode = tvFiles.Nodes.Add(p_Node.Id.ToString(), p_Node.ToString());
+                v_tvNewNode.Tag = p_Node;
+            }
+            await tvFiles_BuildNode(v_tvNewNode, p_Node, false);
         }
 
-        //void tv_BuildNode(TreeNode p_tvNode, Guid p_NodeID, bool p_BuildNextLevel)
-        //{
-        //    v_Root
-        //}
-        void tv_BuildNode(TreeNode p_tvNode, Node p_Node, bool p_BuildNextLevel) 
+        public async Task tvFiles_BuildNode(TreeNode p_tvNode, Node p_Node, bool p_BuildNextLevel)
         {
+            if (p_tvNode.FirstNode != null && p_tvNode.FirstNode.Tag == null)
+            {
+                p_tvNode.Nodes.Clear();
+            }
+
+            if (p_tvNode.Nodes.Count == p_Node.Count()) return;            
+
             foreach (var v_Node in p_Node)
             {
                 TreeNode v_tvNewNode = p_tvNode.Nodes[v_Node.Id.ToString()];
@@ -223,56 +158,54 @@ namespace FilesFinder
                 {
                     v_tvNewNode=p_tvNode.Nodes.Add(v_Node.Id.ToString(), v_Node.Name);
                     v_tvNewNode.Tag = v_Node;
-                    v_tvNewNode.ImageIndex = v_Node.IsFile ? 1 : 0;                    
+                    v_tvNewNode.ImageIndex = v_Node.IsFile ? 1 : 0;
+                    if (!v_Node.IsFile) {
+                        v_tvNewNode.Nodes.Add("Loading...");
+                    }
                 }
-                if (p_BuildNextLevel || v_tvNewNode.IsExpanded) tv_BuildNode(v_tvNewNode, v_Node, false);
-            }
+                if (!v_Node.IsFile && (p_BuildNextLevel || v_tvNewNode.IsExpanded))
+                {
+                    await tvFiles_BuildNode(v_tvNewNode, v_Node, false);
+                }
+            }            
         }
-
-        private void tvFiles_BeforeExpand(object sender, TreeViewCancelEventArgs e)
+       
+        private async void tvFiles_BeforeExpand(object sender, TreeViewCancelEventArgs e)
         {
-            tv_BuildNode(e.Node, e.Node.Tag as Node, true);
-        }
-        private void tvFiles_AfterExpand(object sender, TreeViewEventArgs e)
-        {
-            
-        }
+            await tvFiles_BuildNode(e.Node, e.Node.Tag as Node, false);
+        }        
 
-        void NodeIconNeeded(object sender, ImageNodeEventArgs e)
-        {
-            //if (!(e.Node as Node).IsFile)
-            //    e.Result = Properties.Resources.folder;
-        }
-         
-        
-
-        private void BuildTree(Node root, string fileMask)
+        private void BuildTree(Node root)
         {
             v_Found=0;
             v_Count=0;
             
-            var toProcess = new Stack<Node>();
-            toProcess.Push(root);
+            var v_NodeStack = new Stack<Node>();
+            v_NodeStack.Push(root);
 
-            while (toProcess.Count > 0)
+            while (v_NodeStack.Count > 0)
             {
-                var node = toProcess.Pop();
+                var v_Node = v_NodeStack.Pop();
                 try
                 {
-                    v_Count += Directory.GetFiles(node.FullPath).Length;
-                    v_CurrentDirName = node.FullPath;
+                    v_CurrentDirName = v_Node.FullPath;
 
-                    foreach (var dir in Directory.GetDirectories(node.FullPath))
+                    foreach (var dir in Directory.GetDirectories(v_Node.FullPath))
                     {
                         var n = new Node { FullPath = dir };
-                        node.Add(n);
-                        toProcess.Push(n);
+                        v_Node.Add(n);
+                        v_NodeStack.Push(n);
                     }
 
-                    foreach (var file in Directory.GetFiles(node.FullPath, fileMask))
+                    v_Count += Directory.GetFiles(v_Node.FullPath).Length;
+
+                    var v_Files = Directory.GetFiles(v_Node.FullPath,"*.*").Where(p_Path => v_RegEx.IsMatch(p_Path));
+                     //   Directory.GetFiles(yourPath, "*.xml").Where(path => reg.IsMatch(path));
+
+                    foreach (var v_File in v_Files)
                     {
-                        var n = new Node { FullPath = file, IsFile = true };
-                        node.Add(n);
+                        var v_NewNode = new Node { FullPath = v_File, IsFile = true };
+                        v_Node.Add(v_NewNode);
                         v_Found++;
                     }
                 }
@@ -313,7 +246,10 @@ namespace FilesFinder
         {
             return string.IsNullOrEmpty(Name) ? FullPath : Name;
         }
-
+        public int Count() 
+        { 
+            return Nodes.Where(n => n.HasFile).Count();
+        }
         public void Add(Node node)
         {
             nodes.Add(node);
