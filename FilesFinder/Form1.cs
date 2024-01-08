@@ -87,8 +87,8 @@ namespace FilesFinder
             if (!v_Started) {
                 SetStarted(true);
                 
-                var v_Dir = tbStartDir.Text.Trim();// @"с:";
-                var v_RegExStr = tbRegEx.Text.Trim();// "*.*";
+                var v_Dir = tbStartDir.Text.Trim();
+                var v_RegExStr = tbRegEx.Text.Trim();
 
                 v_RegEx = new Regex(v_RegExStr);
 
@@ -159,6 +159,7 @@ namespace FilesFinder
                     v_tvNewNode=p_tvNode.Nodes.Add(v_Node.Id.ToString(), v_Node.Name);
                     v_tvNewNode.Tag = v_Node;
                     v_tvNewNode.ImageIndex = v_Node.IsFile ? 1 : 0;
+                    v_tvNewNode.SelectedImageIndex = v_Node.IsFile ? 1 : 0;
                     if (!v_Node.IsFile) {
                         v_tvNewNode.Nodes.Add("Loading...");
                     }
@@ -192,21 +193,20 @@ namespace FilesFinder
 
                     foreach (var dir in Directory.GetDirectories(v_Node.FullPath))
                     {
-                        var n = new Node { FullPath = dir };
-                        v_Node.Add(n);
-                        v_NodeStack.Push(n);
+                        var v_NewNode = new Node { FullPath = dir };
+                        v_Node.Add(v_NewNode);
+                        v_NodeStack.Push(v_NewNode);
                     }
 
                     v_Count += Directory.GetFiles(v_Node.FullPath).Length;
 
-                    var v_Files = Directory.GetFiles(v_Node.FullPath,"*.*").Where(p_Path => v_RegEx.IsMatch(p_Path));
-                     //   Directory.GetFiles(yourPath, "*.xml").Where(path => reg.IsMatch(path));
-
+                    var v_Files = Directory.GetFiles(v_Node.FullPath).Where(p_Path => v_RegEx.IsMatch(Path.GetFileName(p_Path)));
+                    
                     foreach (var v_File in v_Files)
                     {
                         var v_NewNode = new Node { FullPath = v_File, IsFile = true };
                         v_Node.Add(v_NewNode);
-                        v_Found++;
+                        v_Found++;                        
                     }
                 }
                 catch (UnauthorizedAccessException)
