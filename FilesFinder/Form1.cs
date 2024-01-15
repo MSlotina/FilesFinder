@@ -16,12 +16,16 @@ namespace FilesFinder
         string c_InitFilePath = @".\init.txt";
 
         Node v_Root = null;
-        bool v_Started = false;
         Thread v_TSearchFiles, v_TShowResult;
-        String c_StartText = "Начать поиск";
-        String c_StopText = "Остановить поиск";
+        ManualResetEvent v_ResEvent = new ManualResetEvent(false);
         Stopwatch v_SW = new Stopwatch();
+
+        String c_StartText = "Начать поиск";
+        String c_СontinueText = "Возобновить поиск";
         Regex v_RegEx;
+
+        enum EnumProcessState {Started = 'S', Continued = 'C', Paused = 'P', Stopped = 'N'};
+        EnumProcessState v_State = EnumProcessState.Stopped;
 
         private int v_Found;
         private int v_Count;
@@ -65,49 +69,125 @@ namespace FilesFinder
                 }
             }
         }
-        
-        private void SetStarted(bool p_Started) 
-        {
-            v_Started = p_Started;
 
-            if (btnSearch.InvokeRequired)
+        private void SetState(EnumProcessState p_State)
+        {
+            v_State = p_State;
+            
+            switch (v_State)
             {
-                btnSearch.Invoke(new Action(() => { btnSearch.Text = p_Started ? c_StopText : c_StartText; }));
-            }
-            else
-            {
-                btnSearch.Text = p_Started ? c_StopText : c_StartText;
-            }
-            if (p_Started) v_SW.Start(); 
-            else v_SW.Reset();            
+                case EnumProcessState.Started:
+
+                    var v_Dir = tbStartDir.Text.Trim();
+                    var v_RegExStr = tbRegEx.Text.Trim();
+
+                    try
+                    {
+                        v_RegEx = new Regex(v_RegExStr);
+                    }
+                    catch 
+                    {
+                        MessageBox.Show("Регулярное выражение введено с ошибкой!");
+                        tbRegEx.Focus();
+                        v_State=EnumProcessState.Stopped;
+                        break;
+                    }
+                    v_Root = new Node { FullPath = v_Dir };
+
+                    v_ResEvent.Set();
+
+                    v_TSearchFiles = new Thread(() => BuildTree(v_Root)) { IsBackground = true };
+                    v_TSearchFiles.Start();
+
+                    v_TShowResult = new Thread(() => ShowResult(v_Root)) { IsBackground = true };
+                    v_TShowResult.Start();
+                    
+                    v_SW.Reset();
+                    v_SW.Start();
+
+                    btnSearch.Enabled = false;
+                    btnPause.Enabled = true;
+                    btnStop.Enabled = true;
+                    break;                    
+                case EnumProcessState.Continued:
+                    v_ResEvent.Set();
+                    v_SW.Start();
+
+                    btnSearch.Enabled = false;
+                    btnPause.Enabled = true;
+                    btnStop.Enabled = true;
+
+                    break;
+                case EnumProcessState.Paused:
+                    v_ResEvent.Reset();
+                    v_SW.Stop();
+                    
+                    if (btnSearch.InvokeRequired)
+                    {
+                        btnSearch.Invoke(new Action(() => { 
+                            btnSearch.Text = c_СontinueText;
+                            btnSearch.Enabled = true;
+                        }));
+                        btnPause.Invoke(new Action(() => {
+                            btnPause.Enabled = false;
+                        }));
+                        btnStop.Invoke(new Action(() => {
+                            btnStop.Enabled = true;
+                        }));
+                    }
+                    else
+                    {
+                        btnSearch.Text = c_СontinueText;
+                        btnSearch.Enabled = true;
+                        btnPause.Enabled = false;
+                        btnStop.Enabled = true;
+                    }                 
+
+                    break;
+                case EnumProcessState.Stopped:                
+                    if (btnSearch.InvokeRequired)
+                    {
+                        btnSearch.Invoke(new Action(() => { 
+                            btnSearch.Text = c_StartText; 
+                            btnSearch.Enabled = true; 
+                        }));
+                        btnPause.Invoke(new Action(() => {
+                            btnPause.Enabled = false;
+                        }));
+                        btnStop.Invoke(new Action(() => {
+                                btnStop.Enabled = false;
+                        }));
+                    }
+                    else
+                    {
+                        btnSearch.Text = c_StartText;
+                        btnSearch.Enabled = true;
+                        btnPause.Enabled = false;
+                        btnStop.Enabled = false;
+                    }
+                    v_ResEvent.Reset();
+                    v_TSearchFiles.Abort();
+                    v_TShowResult.Abort();
+
+                    break;
+            }            
         }
 
         private void btnSearch_Click(object sender, EventArgs e)
         {
-            if (!v_Started) {
-                SetStarted(true);
-                
-                var v_Dir = tbStartDir.Text.Trim();
-                var v_RegExStr = tbRegEx.Text.Trim();
-
-                v_RegEx = new Regex(v_RegExStr);
-
-                v_Root = new Node { FullPath = v_Dir };
-                
-                v_TSearchFiles = new Thread(() => BuildTree(v_Root)) { IsBackground = true };
-                v_TSearchFiles.Start();
-                
-                v_TShowResult = new Thread(() => ShowResult(v_Root)) { IsBackground = true };
-                v_TShowResult.Start();                                
+            if (v_State == EnumProcessState.Stopped) 
+            {
+                SetState(EnumProcessState.Started);
             }
-            else {
-                SetStarted(false);
-                v_TSearchFiles.Abort();
-                v_TShowResult.Abort();
+            else 
+            {
+                SetState(EnumProcessState.Continued);
             }
+        
         }
 
-        void ShowResult(Node v_Root) {
+        void ShowResult(Node v_Root) 
+        {
             tvFiles.Invoke(new Action(() => { tvFiles.Nodes.Clear(); }));            
             int i = 0;
             while (v_TSearchFiles.IsAlive)
@@ -124,11 +204,13 @@ namespace FilesFinder
                 + "Затраченное время:   " + v_SW.Elapsed.TotalSeconds.ToString("0.##") + " секунд";
                 }));
 
-                Thread.Sleep(100);                
+                Thread.Sleep(100);
+
+                v_ResEvent.WaitOne();
             }
             tvFiles.Invoke(new Action(() => { tvFiles_BuildTree(v_Root); }));
 
-            SetStarted(false);
+            SetState(EnumProcessState.Stopped);
                         
         }
 
@@ -174,7 +256,17 @@ namespace FilesFinder
         private async void tvFiles_BeforeExpand(object sender, TreeViewCancelEventArgs e)
         {
             await tvFiles_BuildNode(e.Node, e.Node.Tag as Node, false);
-        }        
+        }
+
+        private void btnPause_Click(object sender, EventArgs e)
+        {
+            SetState(EnumProcessState.Paused);
+        }
+
+        private void btnStop_Click(object sender, EventArgs e)
+        {
+            SetState(EnumProcessState.Stopped);                    
+        }
 
         private void BuildTree(Node root)
         {
@@ -212,6 +304,7 @@ namespace FilesFinder
                 catch (UnauthorizedAccessException)
                 {
                 }
+                v_ResEvent.WaitOne();
             }
         }
     }
