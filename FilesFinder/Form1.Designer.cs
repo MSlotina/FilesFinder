@@ -120,6 +120,7 @@
             this.tbRegEx.Name = "tbRegEx";
             this.tbRegEx.Size = new System.Drawing.Size(195, 20);
             this.tbRegEx.TabIndex = 9;
+            this.tbRegEx.Text = "\\d.*(\\.dll)$";
             // 
             // tbStartDir
             // 
@@ -127,6 +128,7 @@
             this.tbStartDir.Name = "tbStartDir";
             this.tbStartDir.Size = new System.Drawing.Size(166, 20);
             this.tbStartDir.TabIndex = 8;
+            this.tbStartDir.Text = "C:\\";
             // 
             // btnPause
             // 
